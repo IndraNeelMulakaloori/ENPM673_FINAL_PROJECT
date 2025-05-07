@@ -7,18 +7,18 @@ import math
 import numpy as np
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, CameraInfo
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import TwistStamped
 
 class ArucoPoseFollower(Node):
     def __init__(self):
         super().__init__('paper_direction_node')
 
         self.bridge = CvBridge()
-        self.cmd_pub = self.create_publisher(Twist, '/cmd_vel', 10)
-        self.create_subscription(CameraInfo, '/camera/camera_info', self.camera_info_callback, 10)
-        self.create_subscription(Image, '/camera/image_raw', self.image_callback, 10)
+        self.cmd_pub = self.create_publisher(TwistStamped, '/tb4_2/cmd_vel', 10)
+        self.create_subscription(CameraInfo, '/tb4_2/oakd/rgb/camera_info', self.camera_info_callback, 10)
+        self.create_subscription(Image, '/tb4_2/oakd/rgb/image_raw', self.image_callback, 10)
 
-        self.marker_length = 0.10  # in meters
+        self.marker_length = 0.10  # meters
         self.camera_matrix = None
         self.dist_coeffs = None
         self.camera_info_received = False
@@ -42,7 +42,7 @@ class ArucoPoseFollower(Node):
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        # === PAPER RECTANGLE DETECTION ===
+        # === PAPER DETECTION ===
         blurred = cv2.GaussianBlur(gray, (5, 5), 1.5)
         _, binary = cv2.threshold(blurred, 240, 255, cv2.THRESH_BINARY)
         edges = cv2.Canny(binary, 40, 200, apertureSize=3)
@@ -62,8 +62,6 @@ class ArucoPoseFollower(Node):
         if doc_contour is not None:
             corners = doc_contour.reshape(4, 2)
             center = np.mean(corners, axis=0).astype(int)
-
-            # Find longest side (direction)
             dists = [np.linalg.norm(corners[i] - corners[(i + 1) % 4]) for i in range(4)]
             max_idx = np.argmax(dists)
             pt1 = corners[max_idx]
@@ -85,7 +83,6 @@ class ArucoPoseFollower(Node):
         else:
             self.process_aruco_target(ids, tvecs)
 
-        # OPTIONAL: view debug image
         cv2.imshow("Debug View", frame)
         cv2.waitKey(1)
 
@@ -114,7 +111,7 @@ class ArucoPoseFollower(Node):
                 best_idx = i
 
         if best_idx is None:
-            self.get_logger().info("All detected ArUco markers already visited.")
+            self.get_logger().info("All ArUco markers already visited.")
             self.spin_in_place()
             return
 
@@ -126,12 +123,14 @@ class ArucoPoseFollower(Node):
         z = tvec[2]
         self.get_logger().info(f"[ID {marker_id}] Pose: x={x:.2f} m, z={z:.2f} m")
 
-        twist = Twist()
+        twist = TwistStamped()
+        twist.header.stamp = self.get_clock().now().to_msg()
+        twist.header.frame_id = "base_link"
         close_enough = z < 0.3 and abs(x) < 0.05
 
         if not close_enough:
-            twist.linear.x = 0.15
-            twist.angular.z = 0.03 * x
+            twist.twist.linear.x = 0.15
+            twist.twist.angular.z = 0.03 * x
             self.pose_counter = 0
         else:
             self.pose_counter += 1
@@ -139,15 +138,17 @@ class ArucoPoseFollower(Node):
         if self.pose_counter >= self.required_close_frames:
             self.get_logger().info(f"Reached marker {marker_id}. Stopping.")
             self.visited_ids.add(marker_id)
-            twist.linear.x = 0.0
-            twist.angular.z = 0.0
+            twist.twist.linear.x = 0.0
+            twist.twist.angular.z = 0.0
             self.pose_counter = 0
 
         self.cmd_pub.publish(twist)
 
     def spin_in_place(self):
-        twist = Twist()
-        twist.angular.z = 0.1
+        twist = TwistStamped()
+        twist.header.stamp = self.get_clock().now().to_msg()
+        twist.header.frame_id = "base_link"
+        twist.twist.angular.z = 0.1
         self.cmd_pub.publish(twist)
 
 def main(args=None):
@@ -155,4 +156,3 @@ def main(args=None):
     node = ArucoPoseFollower()
     rclpy.spin(node)
     rclpy.shutdown()
-
