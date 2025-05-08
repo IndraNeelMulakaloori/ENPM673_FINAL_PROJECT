@@ -145,7 +145,7 @@ class ArucoPoseFollower(Node):
         self.cmd_pub.publish(twist)
 
     def spin_in_place(self):
-        twist = TwistStamped()
+        twis = TwistStamped()
         twist.header.stamp = self.get_clock().now().to_msg()
         twist.header.frame_id = "base_link"
         twist.twist.angular.z = 0.1
