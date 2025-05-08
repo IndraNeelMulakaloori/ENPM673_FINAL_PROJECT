@@ -47,6 +47,7 @@ install(PROGRAMS
   scripts/aruco_detector_main.py
   scripts/yolo.py 
   scripts/overlay.py 
+  scripts/paper_direction_node.py
   DESTINATION lib/${PROJECT_NAME}
   )
 
