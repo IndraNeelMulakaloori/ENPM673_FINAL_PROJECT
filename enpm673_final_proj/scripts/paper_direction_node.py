@@ -176,15 +176,12 @@ class ArucoPoseFollower(Node):
       
             
     def move_forward_and_stop(self):
-      
-    	move_twist = Twist()
-    	move_twist.linear.x = 0.15
-    	self.cmd_pub.publish(move_twist)
-
-    	rclpy.spin_once(self, timeout_sec=2.0)  # Move forward for ~2 seconds
-
-    	stop_twist = Twist()
-    	self.cmd_pub.publish(stop_twist)
+        move_twist = Twist()
+        move_twist.linear.x = 0.15
+        self.cmd_pub.publish(move_twist)   
+        rclpy.spin_once(self, timeout_sec=2.0)  # Move forward for ~2 seconds  
+        stop_twist = Twist()
+        self.cmd_pub.publish(stop_twist)
 
 
     def spin_in_place(self):
