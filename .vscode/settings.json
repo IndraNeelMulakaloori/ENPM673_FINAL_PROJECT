@@ -1,0 +1,16 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/media/neel/YO/Programming/UMD/ENPM673/final_project/build/perception_pkg",
+        "/media/neel/YO/Programming/UMD/ENPM673/final_project/install/perception_pkg/lib/python3.10/site-packages",
+        "/media/neel/YO/Programming/UMD/ENPM673/final_project/install/enpm673_final_proj/local/lib/python3.10/dist-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/media/neel/YO/Programming/UMD/ENPM673/final_project/build/perception_pkg",
+        "/media/neel/YO/Programming/UMD/ENPM673/final_project/install/perception_pkg/lib/python3.10/site-packages",
+        "/media/neel/YO/Programming/UMD/ENPM673/final_project/install/enpm673_final_proj/local/lib/python3.10/dist-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ]
+}

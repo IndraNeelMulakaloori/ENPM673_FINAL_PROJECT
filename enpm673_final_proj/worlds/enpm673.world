@@ -61,7 +61,11 @@
       <include>
         <uri>model://umd_turtlebot3_waffle_pi</uri>
       </include>
+<<<<<<< HEAD
       <pose>0.8 -0.9 0.0005 0 0 1.57</pose>
+=======
+      <pose>0.8 -0.8 0.0005 0 0 1.57</pose>
+>>>>>>> neel/dev
     </model>
 
     <model name="stop_sign">
@@ -95,9 +99,15 @@
       </plugin>
     </model>
 
+<<<<<<< HEAD
     <model name="oats-can">
       <include>
         <uri>model://oats_can</uri>
+=======
+    <model name="beer">
+      <include>
+        <uri>model://beer</uri>
+>>>>>>> neel/dev
       </include>
       <plugin name="animated_box" filename="libanimated_box.so">
         <trajectory>

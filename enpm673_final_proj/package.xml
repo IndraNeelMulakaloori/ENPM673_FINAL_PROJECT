@@ -14,6 +14,13 @@
   <depend>rclpy</depend>
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
+<<<<<<< HEAD
+=======
+  <depend>cv_bridge</depend>
+  <depend>ultralytics</depend>
+  <depend>std_msgs</depend>
+
+>>>>>>> neel/dev
 
 
   <test_depend>ament_lint_auto</test_depend>

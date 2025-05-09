@@ -15,6 +15,7 @@ from rclpy.qos import ReliabilityPolicy, HistoryPolicy
 from enpm673_module.aruco_detector import *
 
 
+<<<<<<< HEAD
 
 
 
@@ -28,6 +29,8 @@ from enpm673_module.aruco_detector import *
 
 
 
+=======
+>>>>>>> neel/dev
 def main(args=None):
     
     try:

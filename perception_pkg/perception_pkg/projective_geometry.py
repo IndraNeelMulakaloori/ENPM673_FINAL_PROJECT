@@ -6,6 +6,10 @@ from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
+from tf2_ros import TransformBroadcaster, TransformListener, Buffer
+from geometry_msgs.msg import TransformStamped
+from rclpy.qos import QoSProfile
+from rclpy.qos import ReliabilityPolicy, HistoryPolicy
 
 from rclpy.logging import get_logger
 
@@ -15,17 +19,12 @@ class ProjectiveGeometryNode(Node):
         self.get_logger().info("Projective Geometry Node Initialized")
         
         # Declare parameters with default values
-        self.declare_parameter("image_topic", "video_frames")
-        # self.declare_parameter("image_topic", "/camera/image_raw")
-        # self.declare_parameter("image_topic", "/camera/image_raw/compressed")   
-        # self.declare_parameter("camera_info_topic", "/camera/camera_info")                                   
-        # self.declare_parameter("image_topic","/tb4_2/oakd/rgb/image_raw")
-        # self.declare_parameter("camera_info_topic","/tb4_2/oakd/rgb/camera_info")
-        
+        self.declare_parameter("image_topic", "/camera/image_raw")
+        self.declare_parameter("camera_info_topic", "/camera/camera_info")
         
         # Get parameters
         self.image_topic = self.get_parameter("image_topic").get_parameter_value().string_value
-        # self.camera_info_topic = self.get_parameter("camera_info_topic").get_parameter_value().string_value
+        self.camera_info_topic = self.get_parameter("camera_info_topic").get_parameter_value().string_value
         
         
         self._image_bridge = CvBridge()
@@ -39,36 +38,20 @@ class ProjectiveGeometryNode(Node):
         
         
         
-        # self.get_logger().info(f"Subscribed to image: {self.image_topic}, Camera Info: {self.camera_info_topic}")
-        self.get_logger().info(f"Subscribed to image: {self.image_topic}")
+        self.get_logger().info(f"Subscribed to image: {self.image_topic}, Camera Info: {self.camera_info_topic}")
     
-    
+    # Checkerboard 6 x 8, cell/block size = 0.03m x 0.03m
     def compute_intersection(self, line1, line2):
-        """
-        For every first and last lne of row and col
-        this function computes the intersection of the both 
-        lines using directional vectors and points (parametric forms).
-        
-        This computes using linear algebra matrices
-        Ax=b
-
-        Args:
-            line1 (cv.fitline): array lines that consist (dx,dy,x,y)
-            line2 (cv.fitline): array lines that consist (dx,dy,x,y)
-
-        Returns:
-            int : points 
-        """
-        dx1, dy1, x1, y1 = line1.flatten()  ## flatten lines and returns directional vectors and points
-        dx2, dy2, x2, y2 = line2.flatten()  ## flatten lines and returns directional vectors and points
-        A = np.array([[dx1, -dx2], [dy1, -dy2]])     
-        b = np.array([x2 - x1, y2 - y1])     
-        if np.linalg.det(A) != 0:
-            t = np.linalg.solve(A, b)
-            px = x1 + dx1 * t[0]
-            py = y1 + dy1 * t[0]
-            return int(px), int(py)
-        return None
+            vx1, vy1, x1, y1 = line1.flatten()
+            vx2, vy2, x2, y2 = line2.flatten()
+            A = np.array([[vx1, -vx2], [vy1, -vy2]])
+            b = np.array([x2 - x1, y2 - y1])
+            if np.linalg.det(A) != 0:
+                t = np.linalg.solve(A, b)
+                px = x1 + vx1 * t[0]
+                py = y1 + vy1 * t[0]
+                return int(px), int(py)
+            return None
     def image_callback(self,msg):
             try:
                 cv_image = self._image_bridge.imgmsg_to_cv2(msg, "bgr8")
@@ -81,13 +64,48 @@ class ProjectiveGeometryNode(Node):
             # Checkerboard 6 x 8, cell/block size = 0.03m x 0.03m
             ## 198 366 265 78
             square_size = 30
-            # checkerboard_size = (7,5)
-            checkerboard_size = (7,4) ## Video thingy
-           
-            border_size = 500
-            cv_image = cv2.copyMakeBorder(cv_image, border_size, border_size, border_size, border_size, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+            checkerboard_size = (7,5)
+            # img_copy = np.copy(cv_image)
+            # roi = cv2.selectROI("Select ROI", cv_image, fromCenter=False)
+            # roi = (198,363,265,78)
+            # cropped = cv_image[int(roi[1]):int(roi[1]+roi[3]), int(roi[0]):int(roi[0]+roi[2])]
+            # self.get_logger().info(f"{roi}")
             gray_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
             gray_blur = cv2.GaussianBlur(gray_image, (7,7),sigmaX=0)
+            # edges = cv2.Canny(gray_image, 100, 150)
+            # Lists to store object points and image points
+            objpoints = []  # 3D points in real world space
+            imgpoints = []  # 2D points in image plane
+            corner_detected_indices = []
+            # linesP = cv2.HoughLinesP(edges, 1, np.pi / 180, 50, None, 50, 10)
+            # self.get_logger().info(f"Hough lines detected : {linesP}")
+            # cv2.namedWindow('Canny Edge Detection')
+            # def nothing(x):
+            #         pass
+            # # Create trackbars for thresholds
+            # cv2.createTrackbar('Lower', 'Canny Edge Detection', 50, 500, nothing)
+            # cv2.createTrackbar('Upper', 'Canny Edge Detection', 150, 600, nothing)
+
+            # while True:
+            #     lower = cv2.getTrackbarPos('Lower', 'Canny Edge Detection')
+            #     upper = cv2.getTrackbarPos('Upper', 'Canny Edge Detection')
+
+            #     edges = cv2.Canny(img_copy, lower, upper)
+
+            #     cv2.imshow('Canny Edge Detection', edges)
+
+            #     if cv2.waitKey(1) & 0xFF == 27:  # ESC to exit
+            #         break
+            
+            # if linesP is not None:
+            #     for i in range(0, len(linesP)):
+            #         x1,y1,x2,y2 = linesP[i][0]
+            # #         slope = (y2-y1)/(x2-x1)
+            # #         intercept = y1 - slope * x1
+            #         cv2.line(img_copy, (x1, y1), (x2, y2), (0,0,255), 2, cv2.LINE_AA)
+
+            # cv2.imshow("Image", gray_blur)
+            # cv2.imshow("New_Image",edges)
             
             # Find chessboard corners using cv.findChessboardCorners
             ret, corners = cv2.findChessboardCorners(gray_image, checkerboard_size,cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE)
@@ -98,29 +116,26 @@ class ProjectiveGeometryNode(Node):
                 # Refine corner locations
                 criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
                 refined_corners = cv2.cornerSubPix(gray_image, corners, (9, 9), (-1, -1), criteria)
-            
+                # Append object points and image points
+                # objpoints.append(objp)
+                # ## Refined corners need to reshape into (-1,2) for further computation
+                # imgpoints.append(refined_corners.reshape(-1,2))
+                # Draw th corners and append the foudn corner indices
                 # Row-wise lines
                 # cv2.drawChessboardCorners(cv_image, checkerboard_size, refined_corners, ret)
                 reshaped = refined_corners.reshape(checkerboard_size[1], checkerboard_size[0], 2)  # (rows, cols, 2)
-                scale = 1000
-                
-                ### For every row , column we are fitting the lines 
-                ### Using cv2.fitline - least squares method
-                ### This returns us a mean or centroid of the data points(checkerboard coords)
-                ### and directional vector(dx,dy)
-                ### Using this data we will be scaling the lines in their respective directions for every row./col
                 for row in reshaped:
-                    [dx, dy, x0, y0] = cv2.fitLine(row, cv2.DIST_L2, 0, 0.01, 0.01)
-                    x1, y1 = int(x0 - dx * (scale)), int(y0 - dy * (scale))
-                    x2, y2 = int(x0 + dx * (scale)), int(y0 + dy * (scale))
+                    [vx, vy, x0, y0] = cv2.fitLine(row, cv2.DIST_L2, 0, 0.01, 0.01)
+                    x1, y1 = int(x0 - vx * 1000), int(y0 - vy * 1000)
+                    x2, y2 = int(x0 + vx * 1000), int(y0 + vy * 1000)
                     cv2.line(cv_image, (x1, y1), (x2, y2), (0, 255, 0), 1)
 
                 # Column-wise lines
                 for col in reshaped.transpose((1, 0, 2)):
-                    [dx, dy, x0, y0] = cv2.fitLine(col, cv2.DIST_L2, 0, 0.01, 0.01)
-                    x1, y1 = int(x0 - dx * scale), int(y0 - dy * scale)
-                    x2, y2 = int(x0 + dx * scale), int(y0 + dy * scale)
-                    cv2.line(cv_image, (x1, y1), (x2, y2), (0, 0, 255), 1)
+                    [vx, vy, x0, y0] = cv2.fitLine(col, cv2.DIST_L2, 0, 0.01, 0.01)
+                    x1, y1 = int(x0 - vx * 1000), int(y0 - vy * 1000)
+                    x2, y2 = int(x0 + vx * 1000), int(y0 + vy * 1000)
+                    cv2.line(cv_image, (x1, y1), (x2, y2), (255, 0, 0), 1)
             # cv2.imshow("Gray Blurred", gray_image)
             # Compute vanishing points
                 row_vp = self.compute_intersection(
@@ -201,3 +216,6 @@ def main(args=None):
         # Only call shutdown if ROS is still initialized
         if rclpy.ok():
             rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()

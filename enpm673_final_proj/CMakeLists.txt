@@ -1,10 +1,22 @@
 cmake_minimum_required(VERSION 3.8)
 project(enpm673_final_proj)
+<<<<<<< HEAD
+=======
+# force C++17 so std::optional is available
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+add_compile_options(-std=c++17)
+>>>>>>> neel/dev
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> neel/dev
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
@@ -39,6 +51,12 @@ ament_python_install_package(enpm673_module)
 install(PROGRAMS
   scripts/enpm673_final_proj_main.py
   scripts/aruco_detector_main.py
+<<<<<<< HEAD
+=======
+  scripts/yolo.py 
+  scripts/overlay.py 
+  scripts/paper_direction_node.py
+>>>>>>> neel/dev
   DESTINATION lib/${PROJECT_NAME}
   )
 
