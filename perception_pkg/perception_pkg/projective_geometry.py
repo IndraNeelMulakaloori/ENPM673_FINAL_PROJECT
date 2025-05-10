@@ -15,8 +15,8 @@ class ProjectiveGeometryNode(Node):
         self.get_logger().info("Projective Geometry Node Initialized")
         
         # Declare parameters with default values
-        self.declare_parameter("image_topic", "video_frames")
-        # self.declare_parameter("image_topic", "/camera/image_raw")
+        # self.declare_parameter("image_topic", "video_frames")
+        self.declare_parameter("image_topic", "/camera/image_raw")
         # self.declare_parameter("image_topic", "/camera/image_raw/compressed")   
         # self.declare_parameter("camera_info_topic", "/camera/camera_info")                                   
         # self.declare_parameter("image_topic","/tb4_2/oakd/rgb/image_raw")
@@ -38,7 +38,9 @@ class ProjectiveGeometryNode(Node):
         
         
         
-        
+        self._row_vanishing_point = None
+        self._col_vanishing_point = None
+        self._avg_vanishing_point = []
         # self.get_logger().info(f"Subscribed to image: {self.image_topic}, Camera Info: {self.camera_info_topic}")
         self.get_logger().info(f"Subscribed to image: {self.image_topic}")
     
@@ -81,8 +83,8 @@ class ProjectiveGeometryNode(Node):
             # Checkerboard 6 x 8, cell/block size = 0.03m x 0.03m
             ## 198 366 265 78
             square_size = 30
-            # checkerboard_size = (7,5)
-            checkerboard_size = (7,4) ## Video thingy
+            checkerboard_size = (7,5)
+            # checkerboard_size = (7,4) ## Video thingy
            
             border_size = 500
             cv_image = cv2.copyMakeBorder(cv_image, border_size, border_size, border_size, border_size, cv2.BORDER_CONSTANT, value=[0, 0, 0])
@@ -147,28 +149,55 @@ class ProjectiveGeometryNode(Node):
                     ### and extrending them in bot h directions
                     ### this is for having control of visual representation
                     ### alternatively u can use cv line from row_vp to col_vp
-                    # mid_x = (row_vp[0] + col_vp[0]) // 2
-                    # mid_y = (row_vp[1] + col_vp[1]) // 2
-                    # dx = col_vp[0] - row_vp[0]
-                    # dy = col_vp[1] - row_vp[1]
+                    mid_x = (row_vp[0] + col_vp[0]) // 2
+                    mid_y = (row_vp[1] + col_vp[1]) // 2
+                    dx = col_vp[0] - row_vp[0]
+                    dy = col_vp[1] - row_vp[1]
                 
-                    # shrink = 0.5  # This decides the line scaling
-                    # pt1 = (int(mid_x - dx * shrink), int(mid_y - dy * shrink))
-                    # pt2 = (int(mid_x + dx * shrink), int(mid_y + dy * shrink))
+                    shrink = 0.51 # This decides the line scaling
+                    pt1 = (int(mid_x - dx * shrink), int(mid_y - dy * shrink))
+                    pt2 = (int(mid_x + dx * shrink), int(mid_y + dy * shrink))
                     
                     # cv2.circle(cv_image,pt1,radius=10,color=(255,255,255),thickness=-1)
                     # cv2.circle(cv_image,pt2,radius=10,color=(255,255,255),thickness=-1)
                     # cv2.line(cv_image, pt1, pt2, (0, 255, 255), 2)
-                    cv2.circle(cv_image,row_vp,radius=10,color=(255,255,255),thickness=-1)
-                    cv2.circle(cv_image,col_vp,radius=10,color=(255,255,255),thickness=-1)
-                    cv2.line(cv_image, row_vp, col_vp, (0, 255, 255), 2)
-                    self.get_logger().info(f"Horizon line drawn between {row_vp} and {col_vp}")
+                    # cv2.circle(cv_image,row_vp,radius=10,color=(255,255,255),thickness=-1)
+                    # cv2.circle(cv_image,col_vp,radius=10,color=(255,255,255),thickness=-1)
+                    # cv2.line(cv_image, row_vp, col_vp, (0, 255, 255), 2)
+                    # self._row_vanishing_point = pt1
+                    # self._col_vanishing_point = pt2
+                    
+                    self._avg_vanishing_point.append((pt1, pt2))
+                    # self._avg_vanishing_point = np.mean(self._avg_vanishing_point, axis=0).astype(int)
+                    
+
+                    # self.get_logger().info(f"Smoothed Horizon Line: {avg_pt1} to {avg_pt2}")
+                    # self.get_logger().info(f"Horizon line drawn between {pt1} and {pt2}")
+                    # self.get_logger().info(f"Avg Vanishing Point: {self._avg_vanishing_point}")
+                    
+            
             ## Screen Adjustment
             screen_res = 1280, 720  # or use pyautogui.size() if needed
             scale_width = screen_res[0] / cv_image.shape[1]
             scale_height = screen_res[1] / cv_image.shape[0]
             scale = min(scale_width, scale_height)
             display_image = cv2.resize(cv_image, None, fx=scale, fy=scale)
+            
+            ## If the vanishing point is not None
+            if self._avg_vanishing_point != []:
+                # Compute average of points
+                avg_pt1 = tuple(np.mean([point[0] for point in self._avg_vanishing_point], axis=0).astype(int))
+                avg_pt2 = tuple(np.mean([point[1] for point in self._avg_vanishing_point], axis=0).astype(int))
+                self.get_logger().info(f"Smoothed Horizon Line: {avg_pt1} to {avg_pt2}")
+
+                ## Scale the points for display
+                scaled_row_vp = (int(avg_pt1[0] * scale), int(avg_pt1[1] * scale))
+                scaled_col_vp = (int(avg_pt2[0] * scale), int(avg_pt2[1] * scale))
+                
+                ## Draw scaled points and line
+                cv2.circle(display_image, scaled_row_vp, radius=10, color=(255, 255, 255), thickness=-1)
+                cv2.circle(display_image, scaled_col_vp, radius=10, color=(255, 255, 255), thickness=-1)
+                cv2.line(display_image, scaled_row_vp, scaled_col_vp, (0, 255, 255), 2)
             cv2.imshow("Projective Geometry", display_image)
             cv2.waitKey(1)
             self.get_logger().info("Image received and processed")

@@ -10,7 +10,7 @@ class VideoPublisher(Node):
         self.publisher_ = self.create_publisher(Image, 'video_frames', qos_profile=10)
         self.timer = self.create_timer(1/2, self.timer_callback)  # 2 Hz
         self.bridge = CvBridge()
-        self.cap = cv2.VideoCapture('src/ENPM673_turtlebot_perception_challenge/videos/test_run.mp4')
+        self.cap = cv2.VideoCapture('/media/neel/YO/Programming/UMD/ENPM673/final_project/src/ENPM673_turtlebot_perception_challenge/perception_pkg/videos/test_run.mp4')
 
         if not self.cap.isOpened():
             self.get_logger().error('Failed to open video file.')
