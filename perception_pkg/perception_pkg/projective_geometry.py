@@ -99,29 +99,33 @@ class ProjectiveGeometryNode(Node):
             if ret:
                 # Refine corner locations
                 criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-                refined_corners = cv2.cornerSubPix(gray_image, corners, (9, 9), (-1, -1), criteria)
+                refined_corners = cv2.cornerSubPix(gray_image, corners, (5, 5), (-1, -1), criteria)
             
                 # Row-wise lines
                 # cv2.drawChessboardCorners(cv_image, checkerboard_size, refined_corners, ret)
                 reshaped = refined_corners.reshape(checkerboard_size[1], checkerboard_size[0], 2)  # (rows, cols, 2)
-                scale = 1000
+                corner_lines_scale_factor = 1000
                 
                 ### For every row , column we are fitting the lines 
                 ### Using cv2.fitline - least squares method
                 ### This returns us a mean or centroid of the data points(checkerboard coords)
                 ### and directional vector(dx,dy)
                 ### Using this data we will be scaling the lines in their respective directions for every row./col
-                for row in reshaped:
+                row_lines = [reshaped[0],reshaped[-1]]
+                col_lines = [reshaped[:,0,:],reshaped[:,-1,:]]
+                # for row in reshaped:
+                for row in row_lines:
                     [dx, dy, x0, y0] = cv2.fitLine(row, cv2.DIST_L2, 0, 0.01, 0.01)
-                    x1, y1 = int(x0 - dx * (scale)), int(y0 - dy * (scale))
-                    x2, y2 = int(x0 + dx * (scale)), int(y0 + dy * (scale))
+                    x1, y1 = int(x0 - dx * (corner_lines_scale_factor)), int(y0 - dy * (corner_lines_scale_factor))
+                    x2, y2 = int(x0 + dx * (corner_lines_scale_factor)), int(y0 + dy * (corner_lines_scale_factor))
                     cv2.line(cv_image, (x1, y1), (x2, y2), (0, 255, 0), 1)
 
                 # Column-wise lines
-                for col in reshaped.transpose((1, 0, 2)):
+                # for col in reshaped.transpose((1, 0, 2)):
+                for col in col_lines:
                     [dx, dy, x0, y0] = cv2.fitLine(col, cv2.DIST_L2, 0, 0.01, 0.01)
-                    x1, y1 = int(x0 - dx * scale), int(y0 - dy * scale)
-                    x2, y2 = int(x0 + dx * scale), int(y0 + dy * scale)
+                    x1, y1 = int(x0 - dx * corner_lines_scale_factor), int(y0 - dy * corner_lines_scale_factor)
+                    x2, y2 = int(x0 + dx * corner_lines_scale_factor), int(y0 + dy * corner_lines_scale_factor)
                     cv2.line(cv_image, (x1, y1), (x2, y2), (0, 0, 255), 1)
             # cv2.imshow("Gray Blurred", gray_image)
             # Compute vanishing points
@@ -154,7 +158,7 @@ class ProjectiveGeometryNode(Node):
                     dx = col_vp[0] - row_vp[0]
                     dy = col_vp[1] - row_vp[1]
                 
-                    shrink = 0.51 # This decides the line scaling
+                    shrink = 0.5 # This decides the line scaling
                     pt1 = (int(mid_x - dx * shrink), int(mid_y - dy * shrink))
                     pt2 = (int(mid_x + dx * shrink), int(mid_y + dy * shrink))
                     
@@ -178,10 +182,10 @@ class ProjectiveGeometryNode(Node):
             
             ## Screen Adjustment
             screen_res = 1280, 720  # or use pyautogui.size() if needed
-            scale_width = screen_res[0] / cv_image.shape[1]
-            scale_height = screen_res[1] / cv_image.shape[0]
-            scale = min(scale_width, scale_height)
-            display_image = cv2.resize(cv_image, None, fx=scale, fy=scale)
+            corner_lines_scale_factor_width = screen_res[0] / cv_image.shape[1]
+            corner_lines_scale_factor_height = screen_res[1] / cv_image.shape[0]
+            corner_lines_scale_factor = min(corner_lines_scale_factor_width, corner_lines_scale_factor_height)
+            display_image = cv2.resize(cv_image, None, fx=corner_lines_scale_factor, fy=corner_lines_scale_factor)
             
             ## If the vanishing point is not None
             if self._avg_vanishing_point != []:
@@ -190,14 +194,14 @@ class ProjectiveGeometryNode(Node):
                 avg_pt2 = tuple(np.mean([point[1] for point in self._avg_vanishing_point], axis=0).astype(int))
                 self.get_logger().info(f"Smoothed Horizon Line: {avg_pt1} to {avg_pt2}")
 
-                ## Scale the points for display
-                scaled_row_vp = (int(avg_pt1[0] * scale), int(avg_pt1[1] * scale))
-                scaled_col_vp = (int(avg_pt2[0] * scale), int(avg_pt2[1] * scale))
+                ## corner_lines_scale_factor the points for display
+                corner_lines_scale_factord_row_vp = (int(avg_pt1[0] * corner_lines_scale_factor), int(avg_pt1[1] * corner_lines_scale_factor))
+                corner_lines_scale_factord_col_vp = (int(avg_pt2[0] * corner_lines_scale_factor), int(avg_pt2[1] * corner_lines_scale_factor))
                 
-                ## Draw scaled points and line
-                cv2.circle(display_image, scaled_row_vp, radius=10, color=(255, 255, 255), thickness=-1)
-                cv2.circle(display_image, scaled_col_vp, radius=10, color=(255, 255, 255), thickness=-1)
-                cv2.line(display_image, scaled_row_vp, scaled_col_vp, (0, 255, 255), 2)
+                ## Draw corner_lines_scale_factord points and line
+                cv2.circle(display_image, corner_lines_scale_factord_row_vp, radius=10, color=(255, 255, 255), thickness=-1)
+                cv2.circle(display_image, corner_lines_scale_factord_col_vp, radius=10, color=(255, 255, 255), thickness=-1)
+                cv2.line(display_image, corner_lines_scale_factord_row_vp, corner_lines_scale_factord_col_vp, (0, 255, 255), 2)
             cv2.imshow("Projective Geometry", display_image)
             cv2.waitKey(1)
             self.get_logger().info("Image received and processed")
