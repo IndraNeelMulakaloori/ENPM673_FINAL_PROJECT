@@ -14,9 +14,9 @@ class ArucoPoseFollower(Node):
         super().__init__('paper_direction_node')
 
         self.bridge = CvBridge()
-        self.cmd_pub = self.create_publisher(TwistStamped, '/tb4_2/cmd_vel', 10)
-        self.create_subscription(CameraInfo, '/tb4_2/oakd/rgb/camera_info', self.camera_info_callback, 10)
-        self.create_subscription(Image, '/tb4_2/oakd/rgb/image_raw', self.image_callback, 10)
+        self.cmd_pub = self.create_publisher(TwistStamped, '/tb4_1/cmd_vel', 10)
+        self.create_subscription(CameraInfo, '/tb4_1/oakd/rgb/camera_info', self.camera_info_callback, 10)
+        self.create_subscription(Image, '/tb4_1/oakd/rgb/image_raw', self.image_callback, 10)
 
         self.marker_length = 0.10  # meters
         self.camera_matrix = None
@@ -41,6 +41,7 @@ class ArucoPoseFollower(Node):
 
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
 
         # === PAPER DETECTION ===
         blurred = cv2.GaussianBlur(gray, (5, 5), 1.5)
